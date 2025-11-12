@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "formidable": "^3.5.4",
     "lucide-react": "^0.552.0",
     "mongoose": "^8.19.3",
     "next": "15.5.2",
