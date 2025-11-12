@@ -34,14 +34,19 @@ export default function Blog() {
     if (formData.title.trim() && formData.description.trim() && formData.image) {
       setLoading(true);
       try {
-        const data = new FormData();
-        data.append('title', formData.title);
-        data.append('description', formData.description);
-        data.append('image', formData.image);
+        let imageData = formData.image;
+        if (formData.image instanceof File) {
+          imageData = formData.imagePreview;
+        }
 
         const res = await fetch('/api/posts', {
           method: 'POST',
-          body: data,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: formData.title,
+            description: formData.description,
+            image: imageData,
+          }),
         });
 
         const text = await res.text();
@@ -68,14 +73,19 @@ export default function Blog() {
     if (formData.title.trim() && formData.description.trim() && formData.image) {
       setLoading(true);
       try {
-        const data = new FormData();
-        data.append('title', formData.title);
-        data.append('description', formData.description);
-        data.append('image', formData.image);
+        let imageData = formData.image;
+        if (formData.image instanceof File) {
+          imageData = formData.imagePreview;
+        }
 
         const res = await fetch(`/api/posts/${selectedPost._id}`, {
           method: 'PUT',
-          body: data,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: formData.title,
+            description: formData.description,
+            image: imageData,
+          }),
         });
 
         const text = await res.text();

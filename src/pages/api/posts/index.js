@@ -7,9 +7,7 @@ export const config = {
 };
 
 import connectToDatabase from '@/lib/mongoose';
-import Post from '@/models/Post';
-import fs from 'fs';
-import formidable from 'formidable';
+import Post from '@/lib/models/mongoose';
 
 export default async function handler(req, res) {
   await connectToDatabase();
@@ -26,22 +24,10 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     try {
-      const form = formidable({ multiples: false });
-      const [fields, files] = await form.parse(req);
-
-      const title = fields.title?.[0];
-      const description = fields.description?.[0];
-      const imageFile = files.image?.[0];
-
-      if (!title || !description || !imageFile) {
+      const { title, description, image } = req.body;
+      if (!title || !description || !image) {
         return res.status(400).json({ error: 'Brakuje danych' });
       }
-
-      const imageBuffer = fs.readFileSync(imageFile.filepath);
-      const imageBase64 = imageBuffer.toString('base64');
-      const mimeType = imageFile.mimetype || 'image/jpeg';
-      const image = `data:${mimeType};base64,${imageBase64}`;
-
       const post = await Post.create({ title, description, image });
       return res.status(201).json(post);
     } catch (error) {
