@@ -8,8 +8,8 @@ export default function Blog() {
   const [view, setView] = useState('home');
   const [selectedPost, setSelectedPost] = useState(null);
   const [formData, setFormData] = useState({ title: '', description: '', image: null, imagePreview: null });
+  const [loading, setLoading] = useState(false);
 
-  // Załaduj posty z MongoDB
   useEffect(() => {
     const fetchPosts = async () => {
       const res = await fetch('/api/posts');
@@ -24,69 +24,108 @@ export default function Blog() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData({ ...formData, image: reader.result, imagePreview: reader.result });
+        setFormData({ ...formData, image: file, imagePreview: reader.result });
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // Dodawanie nowego posta
   const handleAddPost = async () => {
     if (formData.title.trim() && formData.description.trim() && formData.image) {
-      const res = await fetch('/api/posts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      const newPost = await res.json();
-      setPosts([newPost, ...posts]);
-      setFormData({ title: '', description: '', image: null, imagePreview: null });
-      setView('home');
+      setLoading(true);
+      try {
+        const data = new FormData();
+        data.append('title', formData.title);
+        data.append('description', formData.description);
+        data.append('image', formData.image);
+
+        const res = await fetch('/api/posts', {
+          method: 'POST',
+          body: data,
+        });
+
+        const text = await res.text();
+        console.log('Response:', text, 'Status:', res.status);
+        
+        if (!res.ok) {
+          throw new Error(`Błąd ${res.status}: ${text}`);
+        }
+
+        const newPost = JSON.parse(text);
+        setPosts([newPost, ...posts]);
+        setFormData({ title: '', description: '', image: null, imagePreview: null });
+        setView('home');
+      } catch (error) {
+        console.error('Błąd:', error);
+        alert('Błąd: ' + error.message);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
-  // Aktualizacja posta
   const handleUpdatePost = async () => {
     if (formData.title.trim() && formData.description.trim() && formData.image) {
-      const res = await fetch(`/api/posts/${selectedPost._id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      const updatedPost = await res.json();
-      setPosts(posts.map(p => p._id === updatedPost._id ? updatedPost : p));
-      setFormData({ title: '', description: '', image: null, imagePreview: null });
-      setSelectedPost(updatedPost);
-      setView('details');
+      setLoading(true);
+      try {
+        const data = new FormData();
+        data.append('title', formData.title);
+        data.append('description', formData.description);
+        data.append('image', formData.image);
+
+        const res = await fetch(`/api/posts/${selectedPost._id}`, {
+          method: 'PUT',
+          body: data,
+        });
+
+        const text = await res.text();
+        console.log('Response:', text, 'Status:', res.status);
+        
+        if (!res.ok) {
+          throw new Error(`Błąd ${res.status}: ${text}`);
+        }
+
+        const updatedPost = JSON.parse(text);
+        setPosts(posts.map(p => p._id === updatedPost._id ? updatedPost : p));
+        setFormData({ title: '', description: '', image: null, imagePreview: null });
+        setSelectedPost(updatedPost);
+        setView('details');
+      } catch (error) {
+        console.error('Błąd:', error);
+        alert('Błąd: ' + error.message);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
-  // Usuwanie posta
   const handleDeletePost = async (id) => {
-    await fetch(`/api/posts/${id}`, { method: 'DELETE' });
-    setPosts(posts.filter(p => p._id !== id));
-    setSelectedPost(null);
-    setView('home');
+    try {
+      await fetch(`/api/posts/${id}`, { method: 'DELETE' });
+      setPosts(posts.filter(p => p._id !== id));
+      setSelectedPost(null);
+      setView('home');
+    } catch (error) {
+      console.error('Błąd usuwania:', error);
+      alert('Błąd przy usuwaniu posta');
+    }
   };
 
-  // Edycja posta
   const handleEditPost = (post) => {
     setSelectedPost(post);
     setFormData({
       title: post.title,
       description: post.description,
-      image: post.image,
+      image: null,
       imagePreview: post.image
     });
     setView('edit');
   };
 
-  // Strona główna
   if (view === 'home') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 pt-20 md:pt-24">
         <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 sm:py-8 md:py-12">
-          {/* Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-6 mb-8 sm:mb-12">
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white">Blog</h1>
             <button
@@ -101,7 +140,6 @@ export default function Blog() {
             </button>
           </div>
 
-          {/* Lista postów */}
           {posts.length === 0 ? (
             <div className="text-center py-16 sm:py-20">
               <p className="text-gray-400 text-lg sm:text-xl">Brak postów. Stwórz swój pierwszy post!</p>
@@ -133,7 +171,6 @@ export default function Blog() {
     );
   }
 
-  // Strona tworzenia postu
   if (view === 'create') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 pt-20 md:pt-24">
@@ -160,6 +197,7 @@ export default function Blog() {
                 type="file"
                 accept="image/*"
                 onChange={handleImageChange}
+                disabled={loading}
                 className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-700 text-white text-sm rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none transition"
               />
             </div>
@@ -171,6 +209,7 @@ export default function Blog() {
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder="Wpisz tytuł postu..."
+                disabled={loading}
                 className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-700 text-white text-sm rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none transition"
               />
             </div>
@@ -182,6 +221,7 @@ export default function Blog() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Wpisz opis postu..."
                 rows="6"
+                disabled={loading}
                 className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-700 text-white text-sm rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none transition resize-none"
               />
             </div>
@@ -189,13 +229,15 @@ export default function Blog() {
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <button
                 onClick={handleAddPost}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold transition active:scale-95 text-sm sm:text-base"
+                disabled={loading}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold transition active:scale-95 text-sm sm:text-base disabled:opacity-50"
               >
-                Opublikuj
+                {loading ? 'Wrzucam...' : 'Opublikuj'}
               </button>
               <button
                 onClick={() => setView('home')}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold transition active:scale-95 text-sm sm:text-base"
+                disabled={loading}
+                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold transition active:scale-95 text-sm sm:text-base disabled:opacity-50"
               >
                 Anuluj
               </button>
@@ -206,7 +248,6 @@ export default function Blog() {
     );
   }
 
-  // Strona szczegółów postu
   if (view === 'details' && selectedPost) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 pt-20 md:pt-24">
@@ -248,7 +289,6 @@ export default function Blog() {
     );
   }
 
-  // Strona edycji postu
   if (view === 'edit' && selectedPost) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 pt-20 md:pt-24">
@@ -275,6 +315,7 @@ export default function Blog() {
                 type="file"
                 accept="image/*"
                 onChange={handleImageChange}
+                disabled={loading}
                 className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-700 text-white text-sm rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none transition"
               />
             </div>
@@ -285,6 +326,7 @@ export default function Blog() {
                 type="text"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                disabled={loading}
                 className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-700 text-white text-sm rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none transition"
               />
             </div>
@@ -295,6 +337,7 @@ export default function Blog() {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows="6"
+                disabled={loading}
                 className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-700 text-white text-sm rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none transition resize-none"
               />
             </div>
@@ -302,13 +345,15 @@ export default function Blog() {
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <button
                 onClick={handleUpdatePost}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold transition active:scale-95 text-sm sm:text-base"
+                disabled={loading}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold transition active:scale-95 text-sm sm:text-base disabled:opacity-50"
               >
-                Zapisz zmiany
+                {loading ? 'Zapisuję...' : 'Zapisz zmiany'}
               </button>
               <button
                 onClick={() => setView('details')}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold transition active:scale-95 text-sm sm:text-base"
+                disabled={loading}
+                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold transition active:scale-95 text-sm sm:text-base disabled:opacity-50"
               >
                 Anuluj
               </button>
