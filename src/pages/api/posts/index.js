@@ -1,3 +1,11 @@
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '50mb',
+    },
+  },
+};
+
 import connectToDatabase from '@/lib/mongoose';
 import Post from '@/models/Post';
 
@@ -17,11 +25,9 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
       const { title, description, image } = req.body;
-
       if (!title || !description || !image) {
         return res.status(400).json({ error: 'Brakuje danych' });
       }
-
       const post = await Post.create({ title, description, image });
       return res.status(201).json(post);
     } catch (error) {
